@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khmer Subtitle Editor & TTS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #0f172a;
+            --border-color: #334155;
+            --primary: #38bdf8;
+            --primary-hover: #0ea5e9;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #10b981;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Kantumruy Pro', sans-serif; }
+        body { background-color: var(--bg-main); color: var(--text-main); padding: 20px; min-height: 100vh; }
+        .container { max-width: 900px; margin: 0 auto; background: var(--bg-card); padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4); }
+        h1 { text-align: center; color: var(--primary); margin-bottom: 8px; font-size: 24px; }
+        p.subtitle-desc { text-align: center; color: var(--text-muted); margin-bottom: 24px; font-size: 14px; }
+        
+        .section { background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; margin-bottom: 20px; }
+        .section-title { font-size: 16px; font-weight: 600; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+        @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+        
+        label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+        input[type="text"], select, textarea { width: 100%; padding: 10px; background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; }
+        input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--primary); }
+        textarea { resize: vertical; min-height: 80px; }
+        
+        .btn-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .btn { background: var(--primary); color: #0f172a; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 14px; transition: background 0.2s, transform 0.1s; }
+        .btn:hover { background: var(--primary-hover); }
+        .btn:active { transform: scale(0.98); }
+        .btn-success { background: var(--accent); color: #0f172a; }
+        .btn-success:hover { background: #059669; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        
+        .sub-card { background: #111827; border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 12px; position: relative; }
+        .sub-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--primary); }
+        
+        .tts-controls { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🎬 Khmer Subtitle Editor & TTS</h1>
+        <p class="subtitle-desc">កម្មវិធីកែសម្រួលអត្ថបទ Subtitle ខ្មែរ កំណត់ Timecode និងបម្លែងជាសំឡេង (TTS)</p>
+
+        <!-- Global TTS Settings -->
+        <div class="section">
+            <div class="section-title">🔊 ការកំណត់សំឡេងអាន (Text-to-Speech)</div>
+            <div class="row">
+                <div>
+                    <label>ជ្រើសរើសភាសាអាន:</label>
+                    <select id="ttsLang">
+                        <option value="km-KH">ភាសាខ្មែរ (Khmer)</option>
+                        <option value="en-US" selected>ភាសាអង់គ្លេស (English)</option>
+                        <option value="zh-CN">ភាសាចិន (Chinese)</option>
+                    </select>
+                </div>
+                <div>
+                    <label>ល្បឿនអាន (Speed Rate):</label>
+                    <select id="ttsSpeed">
+                        <option value="0.8">យឺត (0.8x)</option>
+                        <option value="1.0" selected>ធម្មតា (1.0x)</option>
+                        <option value="1.2">លឿនបន្តិច (1.2x)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subtitle Workspace -->
+        <div class="section">
+            <div class="section-title">📝 បញ្ជីរាយនាម Subtitle</div>
+            <div id="subListContainer">
+                <!-- Dynamic Subtitle Item -->
+                <div class="sub-card" data-index="0">
+                    <div class="sub-header">
+                        <span>ជួរទី #1</span>
+                        <button class="btn btn-danger" style="padding: 4px 8px; font-size: 12px;" onclick="removeSub(this)">លុប</button>
+                    </div>
+                    <div class="row">
+                        <div>
+                            <label>ម៉ោងចាប់ផ្តើម (Start)</label>
+                            <input type="text" class="startTime" value="00:00:01,000">
+                        </div>
+                        <div>
+                            <label>ម៉ោងបញ្ចប់ (End)</label>
+                            <input type="text" class="endTime" value="00:00:04,000">
+                        </div>
+                    </div>
+                    <div>
+                        <label>អត្ថបទ Subtitle</label>
+                        <textarea class="subText">សួស្តី! សូមស្វាគមន៍មកកាន់កម្មវិធីកែសម្រួល Subtitle។</textarea>
+                    </div>
+                    <div class="tts-controls">
+                        <button class="btn" onclick="playTTS(this)">🗣️ ស្ដាប់សំឡេង</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn" onclick="addSub()">➕ បន្ថែមជួរថ្មី</button>
+                <button class="btn btn-success" onclick="exportSRT()">💾 ទាញយកជាឯកសារ .SRT</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add new subtitle line
+        function addSub() {
+            const container = document.getElementById('subListContainer');
+            const count = container.children.length + 1;
+            
+            const card = document.createElement('div');
+            card.className = 'sub-card';
+            card.innerHTML = `
+                <div class="sub-header">
+                    <span>ជួរទី #${count}</span>
+                    <button class="btn btn-danger" style="padding: 4px 8px; font-size: 12px;" onclick="removeSub(this)">លុប</button>
+                </div>
+                <div class="row">
+                    <div>
+                        <label>ម៉ោងចាប់ផ្តើម (Start)</label>
+                        <input type="text" class="startTime" value="00:00:05,000">
+                    </div>
+                    <div>
+                        <label>ម៉ោងបញ្ចប់ (End)</label>
+                        <input type="text" class="endTime" value="00:00:08,000">
+                    </div>
+                </div>
+                <div>
+                    <label>អត្ថបទ Subtitle</label>
+                    <textarea class="subText">បញ្ចូលអត្ថបទរបស់អ្នកទីនេះ...</textarea>
+                </div>
+                <div class="tts-controls">
+                    <button class="btn" onclick="playTTS(this)">🗣️ ស្ដាប់សំឡេង</button>
+                </div>
+            `;
+            container.appendChild(card);
+        }
+
+        // Remove subtitle line
+        function removeSub(btn) {
+            const card = btn.closest('.sub-card');
+            card.remove();
+        }
+
+        // Play Text-to-Speech
+        function playTTS(btn) {
+            const card = btn.closest('.sub-card');
+            const text = card.querySelector('.subText').value;
+            const lang = document.getElementById('ttsLang').value;
+            const speed = parseFloat(document.getElementById('ttsSpeed').value);
+
+            if (!text.trim()) {
+                alert('សូមបញ្ចូលអត្ថបទជាមុនសិន!');
+                return;
+            }
+
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // Stop previous speech
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = lang;
+                utterance.rate = speed;
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert(' Browser របស់អ្នកមិនគាំទ្រមុខងារ Text-ို့-Speech ទេ!');
+            }
+        }
+
+        // Export to .SRT file
+        function exportSRT() {
+            const cards = document.querySelectorAll('.sub-card');
+            let srtContent = '';
+
+            cards.forEach((card, index) => {
+                const start = card.querySelector('.startTime').value;
+                const end = card.querySelector('.endTime').value;
+                const text = card.querySelector('.subText').value;
+
+                srtContent += `${index + 1}\n`;
+                srtContent += `${start} --> ${end}\n`;
+                srtContent += `${text}\n\n`;
+            });
+
+            const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'subtitles.srt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
