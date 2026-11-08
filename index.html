@@ -20,6 +20,11 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Kantumruy Pro', sans-serif; }
         body { background-color: var(--bg-main); color: var(--text-main); padding: 20px; min-height: 100vh; }
         .container { max-width: 900px; margin: 0 auto; background: var(--bg-card); padding: 25px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4); }
+        
+        /* Logo Styles */
+        .logo-container { text-align: center; margin-bottom: 15px; }
+        .logo-container img { width: 110px; height: 110px; object-fit: cover; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); border: 2px solid var(--primary); }
+
         h1 { text-align: center; color: var(--primary); margin-bottom: 8px; font-size: 24px; }
         p.subtitle-desc { text-align: center; color: var(--text-muted); margin-bottom: 24px; font-size: 14px; }
         
@@ -42,18 +47,26 @@
         .btn-success:hover { background: #059669; color: white; }
         .btn-danger { background: #ef4444; color: white; }
         .btn-danger:hover { background: #dc2626; }
+        .btn-warning { background: #f59e0b; color: #0f172a; }
+        .btn-warning:hover { background: #d97706; color: white; }
         
         .sub-card { background: #111827; border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 12px; position: relative; }
         .sub-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--primary); }
         
         .tts-controls { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+        input[type="file"] { display: none; }
     </style>
 </head>
 <body>
 
     <div class="container">
+        <!-- Logo Section -->
+        <div class="logo-container">
+            <img src="logo.png" alt="Khmer Subtitle Editor Logo" onerror="this.style.display='none'">
+        </div>
+
         <h1>🎬 Khmer Subtitle Editor & TTS</h1>
-        <p class="subtitle-desc">កម្មវិធីកែសម្រួលអត្ថបទ Subtitle ខ្មែរ កំណត់ Timecode និងបម្លែងជាសំឡេង (TTS)</p>
+        <p class="subtitle-desc">កែសម្រួល Subtitle ខ្មែរ, Import/Export .SRT និងបង្កើតសំឡេងអាន (TTS)</p>
 
         <!-- Global TTS Settings -->
         <div class="section">
@@ -81,8 +94,16 @@
         <!-- Subtitle Workspace -->
         <div class="section">
             <div class="section-title">📝 បញ្ជីរាយនាម Subtitle</div>
+            
+            <div class="btn-group" style="margin-top: 0; margin-bottom: 15px;">
+                <label for="importSrtFile" class="btn btn-warning" style="cursor: pointer; margin: 0;">
+                    📂 Import ឯកសារ .SRT
+                </label>
+                <input type="file" id="importSrtFile" accept=".srt" onchange="importSRT(event)">
+            </div>
+
             <div id="subListContainer">
-                <!-- Dynamic Subtitle Item -->
+                <!-- Initial Subtitle Item -->
                 <div class="sub-card" data-index="0">
                     <div class="sub-header">
                         <span>ជួរទី #1</span>
@@ -117,7 +138,7 @@
 
     <script>
         // Add new subtitle line
-        function addSub() {
+        function addSub(start = "00:00:05,000", end = "00:00:08,000", text = "បញ្ចូលអត្ថបទរបស់អ្នកទីនេះ...") {
             const container = document.getElementById('subListContainer');
             const count = container.children.length + 1;
             
@@ -131,16 +152,16 @@
                 <div class="row">
                     <div>
                         <label>ម៉ោងចាប់ផ្តើម (Start)</label>
-                        <input type="text" class="startTime" value="00:00:05,000">
+                        <input type="text" class="startTime" value="${start}">
                     </div>
                     <div>
                         <label>ម៉ោងបញ្ចប់ (End)</label>
-                        <input type="text" class="endTime" value="00:00:08,000">
+                        <input type="text" class="endTime" value="${end}">
                     </div>
                 </div>
                 <div>
                     <label>អត្ថបទ Subtitle</label>
-                    <textarea class="subText">បញ្ចូលអត្ថបទរបស់អ្នកទីនេះ...</textarea>
+                    <textarea class="subText">${text}</textarea>
                 </div>
                 <div class="tts-controls">
                     <button class="btn" onclick="playTTS(this)">🗣️ ស្ដាប់សំឡេង</button>
@@ -153,6 +174,61 @@
         function removeSub(btn) {
             const card = btn.closest('.sub-card');
             card.remove();
+            updateSubNumbers();
+        }
+
+        // Update card numbers after deletion
+        function updateSubNumbers() {
+            const cards = document.querySelectorAll('.sub-card');
+            cards.forEach((card, index) => {
+                card.querySelector('.sub-header span').innerText = `ជួរទី #${index + 1}`;
+            });
+        }
+
+        // Import .SRT File Parser
+        function importSRT(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                parseSRT(content);
+            };
+            reader.readAsText(file);
+        }
+
+        function parseSRT(data) {
+            const cleanedData = data.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            const blocks = cleanedData.split(/\n\s*\n/);
+            
+            const container = document.getElementById('subListContainer');
+            container.innerHTML = '';
+
+            let addedCount = 0;
+            blocks.forEach(block => {
+                const lines = block.split('\n');
+                if (lines.length >= 3) {
+                    const timeLine = lines[1];
+                    if (timeLine && timeLine.includes('-->')) {
+                        const times = timeLine.split('-->');
+                        const start = times[0].trim();
+                        const end = times[1].trim();
+                        const text = lines.slice(2).join('\n').trim();
+
+                        addSub(start, end, text);
+                        addedCount++;
+                    }
+                }
+            });
+
+            if (addedCount > 0) {
+                alert(`បាន Import ឯកសារ .SRT ជោគជ័យចំនួន ${addedCount} ជួរ!`);
+            } else {
+                alert('ទ្រង់ទ្រាយឯកសារ .SRT មិនត្រឹមត្រូវ ឬគ្មានទិន្នន័យ!');
+            }
+            
+            event.target.value = '';
         }
 
         // Play Text-to-Speech
@@ -168,13 +244,13 @@
             }
 
             if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel(); // Stop previous speech
+                window.speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = lang;
                 utterance.rate = speed;
                 window.speechSynthesis.speak(utterance);
             } else {
-                alert(' Browser របស់អ្នកមិនគាំទ្រមុខងារ Text-ို့-Speech ទេ!');
+                alert('Browser របស់អ្នកមិនគាំទ្រមុខងារ Text-to-Speech ទេ!');
             }
         }
 
